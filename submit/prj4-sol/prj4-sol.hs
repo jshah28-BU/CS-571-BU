@@ -33,7 +33,11 @@ employees = [
 -- empls which have emplDept == dept.
 -- Restriction: MUST use recursion
 deptEmployees :: [Employee] -> Department -> [Employee]
-deptEmployees _ _ = error "TODO"
+deptEmployees [] _ = []
+deptEmployees (x:xs) dept
+         | dept == emplDept x = x : (deptEmployees xs dept)
+         | otherwise = deptEmployees xs dept
+
 
 testDeptEmployees = do
   assertEq "deptEmployees cs"
