@@ -54,9 +54,9 @@ testDeptEmployees = do
 -- #2: 10-points
 -- comprDeptEmployees has same spec as deptEmployees.
 -- Restriction: MUST be implemented using list comprehension.
-comprDeptEmployees :: [Employee] -> Department -> [Employee]
-comprDeptEmployees _ _ = error "TODO"
 
+comprDeptEmployees :: [Employee] -> Department -> [Employee]
+comprDeptEmployees employees dept = [x | x <- employees, emplDept x == dept ]
 
 testComprDeptEmployees = do
   assertEq "comprDeptEmployees cs"
@@ -74,8 +74,10 @@ testComprDeptEmployees = do
 -- Given a list empls of Employee, (employeesSalarySum empls) must
 -- return the sum of the emplSalary of all the employees in empls.
 -- Restriction: May NOT use recursion or list comprehension.
+
 employeesSalarySum :: [ Employee ] -> Float
-employeesSalarySum _ = error "TODO"
+employeesSalarySum [] = 0
+employeesSalarySum empls = foldl (\a e -> a + emplSalary e) 0 empls
 
 testEmployeesSalarySum = do
   assertEq "employeesSalarySum all" (employeesSalarySum employees) 344700.0
@@ -113,8 +115,8 @@ testQuadraticRoots = do
 -- Given a x (expn x) should return the infinite series
 -- 1 + x + x**2/2! + x**3/3! + x**4/4!
 -- Hint: use a local auxiliary function
-expn :: (Floating a)  => a -> [a]
-expn _ = error "TODO"
+
+expn x = [x**n/(product [1..n])| n<-[0..]]
 
 -- epsilon equality for floats; does not work if close to 0.0
 floatEq f1 f2 = (abs (f2 - f1)/f1) < 0.0001
