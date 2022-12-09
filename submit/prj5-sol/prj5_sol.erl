@@ -459,7 +459,7 @@ receive_server(Employees, Fn) ->
             ClientPid ! {ok, stopped};
           {new_fn, Fn1} ->
             ClientPid ! {self(), {ok, void}},
-            receive_server(employees, Fn1);
+            receive_server(Employees, Fn1);
           _ ->
               {Status, Result, Employees1} = Fn(Req, Employees),
               ClientPid ! {self(), {Status, Result}},
