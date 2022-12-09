@@ -13,25 +13,21 @@
   %move this down to just before -endif when project completed
 -define(test_dept_employees1, enabled).
 -define(test_dept_employees2, enabled).
-
 -define(test_dept_employees3, enabled).
-
 -define(test_delete_employee, enabled).
-
 -define(test_upsert_employee, enabled).
-
 -define(test_find_employees, enabled).
 -define(test_employees_req, enabled).
--if(false).
 -define(test_employees_req_with_sort, enabled).
+
 -define(test_employees_client_no_sort, enabled).
 -define(test_employees_client_with_sort_dosort, enabled).
 -define(test_employees_client_with_sort, enabled).
 -define(test_employees_client_no_sort_mutate, enabled).
 -define(test_employees_client_with_sort_mutate, enabled).
 -define(test_employees_client_hot_reload, enabled).
+-if(false).
 -endif.
-
 
 %% Tracing Tests: set trace_level as desired.
 % trace_level == 0:  no tracing
@@ -124,16 +120,20 @@ employee_has_salary(Salary) -> fun (E) -> E#employee.salary == Salary end.
 
 employees() -> ?Employees.
 upsert_employees() -> [ ?Tom1, ?Jane1, ?Joe1 ].
+    
+
+
+%-------------------------- dept_employees1/2 ---------------------------
+
 % #1: "10-points"
 % dept_employees1(Dept, Employees): return sub-list of Employees
 % having dept = Dept.
 % Restriction: must be implemented using recursion without using any library 
 % functions.
-dept_employees1(_,[]) -> [] ;
-dept_employees1(Dept, [I|J]) -> 
-    if I#employee.dept == Dept -> [I | dept_employees1(Dept,J)];
-        true -> dept_employees1(Dept,J)
-    end.
+dept_employees1(_Dept, []) -> [];
+dept_employees1(Dept, [H|T]) -> 
+    if H#employee.dept == Dept -> 
+      [H|dept_employees1(Dept, T)]; true -> dept_employees1(Dept, T) end.
 
 dept_employees_test_specs() -> 
     Es = ?Employees,
@@ -147,7 +147,8 @@ dept_employees_test_specs() ->
 -ifdef(test_dept_employees1).
 dept_employees1_test_() ->
     make_tests(fun dept_employees1/2, dept_employees_test_specs()).
--endif. %test_dept_employees1 
+-endif. %test_dept_employees1    
+
 
 %-------------------------- dept_employees2/2 ---------------------------
 
@@ -156,9 +157,8 @@ dept_employees1_test_() ->
 % having dept = Dept.
 % Restriction: must be implemented using a single call to lists:filter().
 dept_employees2(Dept, []) -> [];
-dept_employees2(Dept, [I|J]) -> 
-    if I#employee.dept == Dept -> [I|dept_employees2(Dept, J)]; true -> dept_employees2(Dept, J) end.
-
+dept_employees2(Dept, [H|T]) -> 
+    if H#employee.dept == Dept -> [H|dept_employees2(Dept, T)]; true -> dept_employees2(Dept, T) end.
 -ifdef(test_dept_employees2).
 dept_employees2_test_() ->
     make_tests(fun dept_employees2/2, dept_employees_test_specs()).
@@ -171,7 +171,7 @@ dept_employees2_test_() ->
 % having dept = Dept.
 % Restriction: must be implemented using a list comprehension.
 dept_employees3(Dept, Employees) ->
-  I = [Z || Z <- Employees, Dept == Z#employee.dept], I.
+  A = [Y || Y <- Employees, Dept == Y#employee.dept], A.
 
 -ifdef(test_dept_employees3).
 dept_employees3_test_() ->
@@ -179,12 +179,13 @@ dept_employees3_test_() ->
 -endif. %test_dept_employees3
 
 %------------------------- delete_employee/2 ----------------------------
+
 % #4: "10-points"
 % Given a list Employees of employees, return sublist of Employees
 % with employee with name=Name removed.  It is ok if Name does not exist.
 % Hint: use a list comprehension 
 delete_employee(Name, Employees) -> 
-  I = [Z || Z <- Employees, Name =/= Z#employee.name], I.
+  A = [Y || Y <- Employees, Name =/= Y#employee.name], A.
 
 %% returns list of pairs: { Args, Result }, where Args is list of
 %% arguments to function and Result should be the value returned
@@ -213,11 +214,12 @@ delete_employee_test_() ->
 % an employee E1 with E1.name == E.name, then return Employees
 % with E1 replaced by E, otherwise return Employees with
 % [E] appended.
-upsert_employee(E,[]) -> [E];
-upsert_employee(E, [I|J]) ->
-  if E#employee.name == I#employee.name -> [E | J];
-    true-> [I|upsert_employee(E,J)]
-  end.
+upsert_employee(E, []) -> [E];
+upsert_employee(E, [H|T]) ->
+case H#employee.name =:= E#employee.name of
+true -> [E|T];
+false -> [H|upsert_employee(E, T)]
+end.
 
 
 %% returns list of pairs: { Args, Result }, where Args is list of
@@ -245,6 +247,7 @@ upsert_employee_test_() ->
 -endif. %test_upsert_employee
 
 %--------------------------- find_employees/2 ---------------------------
+
 % #6: "15-points"
 % find_employees(Preds, Employees):
 % Given a list Employees of employees and a list of predicates Preds
@@ -282,7 +285,6 @@ find_employees_test_specs() ->
 find_employees_test_() ->
     make_tests(fun find_employees/2, find_employees_test_specs()).
 -endif. %test_find_employees
-
 
 %--------------------------- employees_req/2 ----------------------------
 
@@ -369,3 +371,242 @@ employees_req_test_specs() ->
 employees_req_test_() ->
     make_tests(fun employees_req/2, employees_req_test_specs()).
 -endif. %test_employees_req
+
+%---------------------- employees_req_with_sort/2 -----------------------
+
+% #8: "10-points"
+% employees_req_with_sort(Req, Employees):
+% Exactly like employees_req/2 except that it handles an additional Req:
+% { sort } which should return { ok, void, SortedEmployees }
+% where SortedEmployees is Employees sorted in ascending order by name.
+% Hint: use lists:sort/2 to sort, delegate all non-sort Fns to employees_req/2.
+employees_req_with_sort(Req, Employees) ->
+  CmpFun = fun (E1, E2) ->
+    E1#employee.name =< E2#employee.name
+  end,
+  case Req of
+    {sort} -> {ok, void, lists:sort(CmpFun, Employees)};
+    _ -> prj5_sol:employees_req(Req, Employees)
+  end.
+
+
+employees_req_with_sort_test_specs() ->
+    [ { sort, [{sort}, ?Employees], { ok, void, ?SortedEmployees } } ] ++
+    employees_req_test_specs().
+
+% the additional specs here are not suitable for use by the server
+employees_req_with_sort_extra_test_specs() ->
+    [ { sort_single, [{sort}, [?Tom]], { ok, void, [?Tom]} },
+      { sort_empty, [{sort}, [] ], { ok, void, [] } }
+    ] ++ employees_req_with_sort_test_specs().
+    
+-ifdef(test_employees_req_with_sort).
+employees_req_with_sort_test_() ->
+    Fn = fun employees_req_with_sort/2,
+    make_tests(Fn, employees_req_with_sort_extra_test_specs()).
+-endif. %test_employees_req_with_sort
+
+%-------------------- Hot Reload Server and Client ----------------------
+
+% #9: "20-points"
+
+% start_employees_server(Employees, Fn):
+% start a server process with employees list Employees and processing
+% function Fn (usually either employees_req/2 or
+% employees_req_with_sort/2).  Register server process under ID emps
+% and return PID of started process.
+% 
+% The server should accept messages of the form { Pid, Req } where Pid
+% is the client's PID.  The action taken by the server depends on Req:
+% { stop }:            Terminate the server after sending a { ok, stopped}
+%		       response to the client.   
+% { new_fn, Fn1 }:     Continue server with processing function
+%                      Fn replaced by Fn1 after sending a {ok, void} 
+%                      response to the client. 
+%  All other requests: Req should be forwarded to Fn as Fn(Req, Employees),
+%                      where Fn is the current processing function 
+%                      and Employees are the current employees in the 
+%                      server state.  Assuming the result of the forwarded
+%                      call is { Status, Result, Employees1 }, then the server
+%                      should continue with (possibly) new Employees1 and
+%                      current processing function Fn after sending a
+%                      { Status, Result } response to the client.
+% The actual messages returned to the client should always include the
+% server's PID, so they look like { self(), Response } where Response is
+% the response described above.
+start_employees_server(Employees, Fn) ->
+  Param =[Employees, Fn],
+  ServerID = spawn(prj5_sol, receive_server, Param),
+  register(emps, ServerID).
+
+
+% stop previously started server with registered ID emps.
+% should return {ok, stopped}.
+stop_employees_server() ->
+  emps ! {self(),{stop}},
+  receive
+    {
+      _Status, _Result} ->
+        {ok, stopped}
+    end.
+
+receive_server(Employees, Fn) ->
+  receive
+    {
+      ClientPid, Req} ->
+        case Req of 
+          {stop} ->
+            ClientPid ! {ok, stopped};
+          {new_fn, Fn1} ->
+            ClientPid ! {self(), {ok, void}},
+            receive_server(employees, Fn1);
+          _ ->
+              {Status, Result, Employees1} = Fn(Req, Employees),
+              ClientPid ! {self(), {Status, Result}},
+              receive_server(Employees1,Fn)
+         end
+      end. 
+
+% set request Req to server registered under ID emps and return 
+% Result from server.
+employees_client(Req) ->
+  emps ! {self(), Req},
+  receive
+    {_, {Status,Result}} ->
+      {Status, Result}
+  end.
+
+
+%% map employees_req test to a employees_client test
+make_employees_client_test_specs(Specs) ->
+    DropLast = fun (Tuple) -> 
+		       if tuple_size(Tuple) =:= 2 ->
+			  { element(1, Tuple) };
+			  true -> { element(1, Tuple), element(2, Tuple) }
+		       end
+	       end,
+    MapFn = fun (Spec) ->
+		case Spec of
+		    { Test, [Arg0|_], Result } -> 
+			{ Test, [Arg0], DropLast(Result) };
+		    { Test, [Arg0|_], Result, Fn } ->
+			{ Test, [Arg0], DropLast(Result), Fn }
+		end
+	    end,
+    [ MapFn(Spec) || Spec <- Specs ].
+
+employees_client_no_sort_test_specs() ->
+    make_employees_client_test_specs(employees_req_test_specs()).
+    
+employees_client_with_sort_test_specs() ->
+    make_employees_client_test_specs(employees_req_with_sort_test_specs()).
+    
+-ifdef(test_employees_client_no_sort).
+employees_client_no_sort_test_() ->
+    Es = ?Employees,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, employees_client_no_sort_test_specs())
+    }.
+-endif.
+
+-ifdef(test_employees_client_with_sort).
+% test non-sort functionality
+employees_client_with_sort_test_() ->
+    Es = ?Employees,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req_with_sort/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, employees_client_no_sort_test_specs())
+    }.
+-endif.
+
+-ifdef(test_employees_client_with_sort_dosort).
+employees_client_with_sort_dosort_test_() ->
+    Es = ?Employees,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req_with_sort/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, 
+	[
+	 { sort, [{sort}], {ok, void} },
+	 { sorted_dump, [{dump}], { ok, ?SortedEmployees } }
+	])
+    }.
+-endif.
+
+employees_client_mutate_test_specs() ->
+    Es = ?Employees,
+    [ { dump0, [{dump}], {ok, Es} },
+      { delete_last, [{delete, jane}], {ok, void } },
+      { dump1, [{dump}],
+       {ok, [ ?Tom, ?Joan, ?Bill, ?John, ?Sue, ?Alice, ?Harry, ?Larry, ?Erwin] }
+      },
+      { delete_intermediate, [{delete, sue}], { ok, void } },
+      { dump2, [{dump}],
+       {ok, [ ?Tom, ?Joan, ?Bill, ?John, ?Alice, ?Harry, ?Larry, ?Erwin] }
+      },
+      { read_intermediate, [{read, alice}], { ok, ?Alice } },
+      { read_first, [{read, tom}], { ok, ?Tom } },
+      { upsert_first, [{upsert, ?Tom1}], { ok, void } },
+      { dump3, [{dump}],
+       {ok, [ ?Tom1, ?Joan, ?Bill, ?John, ?Alice, ?Harry, ?Larry, ?Erwin] }
+      },
+      { upsert_end1, [{upsert, ?Joe1}], { ok, void } },
+      { upsert_end2, [{upsert, ?Jane1}], { ok, void } },
+      { dump4, [{dump}],
+       {ok, [ ?Tom1, ?Joan, ?Bill, ?John, ?Alice, ?Harry, ?Larry, ?Erwin,
+	      ?Joe1, ?Jane1] }
+      },
+      { find_age, [ {find, [employee_has_age(44)]} ], { ok, [?Tom1] } }
+    ].
+    
+-ifdef(test_employees_client_no_sort_mutate).
+employees_client_no_sort_mutate_test_() ->
+    Es = ?Employees,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, employees_client_mutate_test_specs())
+    }.
+-endif.
+
+-ifdef(test_employees_client_with_sort_mutate).
+employees_client_with_sort_mutate_test_() ->
+    Es = ?Employees,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req_with_sort/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, 
+		 employees_client_mutate_test_specs()
+		 ++ [ { sort, [{sort}], {ok, void} },
+		      { dump5, [{dump}], 
+			{ok, [ ?Alice,  ?Bill, ?Erwin, ?Harry, ?Jane1, ?Joan, 
+			       ?Joe1, ?John, ?Larry, ?Tom1
+			     ] 
+			}
+		      }
+		    ])
+    }.
+-endif.
+
+-ifdef(test_employees_client_hot_reload).
+employees_client_hot_reload_test_() ->
+    Es = ?Employees,
+    Ignore = fun ignore_err_message/1,
+    { setup,
+      fun () -> start_employees_server(Es, fun employees_req_with_sort/2) end,
+      fun (_) ->  stop_employees_server() end,
+      make_tests(fun employees_client/1, 
+		 [ { first_sort, [{sort}], {ok, void} },
+		   { dump1, [{dump}], {ok, ?SortedEmployees} },
+		   { new_fn1, [{new_fn, fun employees_req/2}], {ok, void} },
+		   { sort_err, [{sort}], {err}, Ignore },
+		   { dump2, [{dump}], {ok, ?SortedEmployees} },
+		   { new_fn1, [{new_fn, fun employees_req_with_sort/2}], 
+		     {ok, void} 
+		   }
+		 ])
+    }.
+-endif.
